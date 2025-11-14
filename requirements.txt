@@ -1,0 +1,12 @@
+# Dépendances Python pour le projet LEDs BLEDDM
+# Installation: pip install -r requirements.txt
+
+# Contrôle Bluetooth Low Energy
+bleak>=0.20.0
+
+# Serveur web et API
+Flask>=2.3.0
+flask-cors>=4.0.0
+
+# Gestion des variables d'environnement
+python-dotenv>=1.0.0

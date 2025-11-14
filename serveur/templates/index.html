@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle LEDs BLEDDM</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        color: white;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+        font-size: 2.5em;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      }
+
+      #status {
+        text-align: center;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 1.1em;
+      }
+
+      /* Indicateur d'état actuel */
+      .current-state {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      .state-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .state-label {
+        font-size: 0.9em;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .color-preview {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .effect-display {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #4CAF50;
+        text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      .brightness-display {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #FFC107;
+      }
+
+      .section {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .section h2 {
+        margin-bottom: 15px;
+        font-size: 1.5em;
+        color: #4CAF50;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .button-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+      }
+
+      .button-grid-colors {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+      }
+
+      button {
+        font-size: 16px;
+        padding: 15px 20px;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .btn-on {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+      }
+
+      .btn-off {
+        background: linear-gradient(135deg, #f44336, #da190b);
+        color: white;
+      }
+
+      .btn-color {
+        color: white;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+
+      .btn-effect {
+        background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+        color: white;
+      }
+
+      .btn-stop {
+        background: linear-gradient(135deg, #FF9800, #F57C00);
+        color: white;
+        font-size: 18px;
+        padding: 20px;
+      }
+
+      .slider-container {
+        margin: 20px 0;
+      }
+
+      .slider-container label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 8px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.2);
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #4CAF50;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #4CAF50;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      .color-picker-container {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin: 15px 0;
+        flex-wrap: wrap;
+      }
+
+      input[type="color"] {
+        width: 80px;
+        height: 50px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .value-display {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #4CAF50;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 1.8em;
+        }
+
+        .current-state {
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .button-grid, .button-grid-colors {
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 10px;
+        }
+
+        button {
+          font-size: 14px;
+          padding: 12px 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎨 Contrôle LEDs BLEDDM</h1>
+
+      <div id="status">Status: En attente...</div>
+
+      <!-- Indicateur d'état actuel -->
+      <div class="current-state">
+        <div class="state-item">
+          <div class="state-label">Couleur Actuelle</div>
+          <div id="color-preview" class="color-preview" style="background: rgb(255, 255, 255);"></div>
+          <span id="rgb-display" class="value-display">RGB(255, 255, 255)</span>
+        </div>
+        <div class="state-item">
+          <div class="state-label">Effet en Cours</div>
+          <div id="effect-display" class="effect-display">Aucun</div>
+        </div>
+        <div class="state-item">
+          <div class="state-label">Luminosité</div>
+          <div id="current-brightness" class="brightness-display">100%</div>
+        </div>
+      </div>
+
+      <!-- Contrôles de base -->
+      <div class="section">
+        <h2>⚡ Contrôles de Base</h2>
+        <div class="button-grid">
+          <button class="btn-on" onclick="ledOn()">💡 Allumer</button>
+          <button class="btn-off" onclick="ledOff()">🌑 Éteindre</button>
+          <button class="btn-color" style="background: white; color: black;" onclick="ledWhite()">⚪ Blanc</button>
+        </div>
+      </div>
+
+      <!-- Luminosité -->
+      <div class="section">
+        <h2>🔆 Luminosité</h2>
+        <div class="slider-container">
+          <label>
+            Luminosité: <span id="brightness-value" class="value-display">100%</span>
+          </label>
+          <input
+            type="range"
+            id="brightness-slider"
+            min="0"
+            max="100"
+            value="100"
+            oninput="updateBrightnessDisplay(this.value)"
+            onchange="setBrightness(this.value)"
+          />
+        </div>
+      </div>
+
+      <!-- Sélecteur de couleur personnalisé -->
+      <div class="section">
+        <h2>🎨 Couleur Personnalisée</h2>
+        <div class="color-picker-container">
+          <input type="color" id="color-picker" value="#ffffff" />
+          <button class="btn-color" style="background: #2196F3;" onclick="setColorFromPicker()">
+            Appliquer
+          </button>
+          <span id="color-value" class="value-display">RGB(255, 255, 255)</span>
+        </div>
+      </div>
+
+      <!-- Couleurs rapides -->
+      <div class="section">
+        <h2>🌈 Couleurs Rapides</h2>
+        <div class="button-grid-colors">
+          <button class="btn-color" style="background: #f44336;" onclick="setColor(255,0,0)">
+            🔴 Rouge
+          </button>
+          <button class="btn-color" style="background: #4CAF50;" onclick="setColor(0,255,0)">
+            🟢 Vert
+          </button>
+          <button class="btn-color" style="background: #2196F3;" onclick="setColor(0,0,255)">
+            🔵 Bleu
+          </button>
+          <button class="btn-color" style="background: #FFEB3B; color: black;" onclick="setColor(255,255,0)">
+            🟡 Jaune
+          </button>
+          <button class="btn-color" style="background: #FF9800;" onclick="setColor(255,165,0)">
+            🟠 Orange
+          </button>
+          <button class="btn-color" style="background: #E91E63;" onclick="setColor(255,20,147)">
+            💖 Rose
+          </button>
+          <button class="btn-color" style="background: #9C27B0;" onclick="setColor(156,39,176)">
+            🟣 Violet
+          </button>
+          <button class="btn-color" style="background: #00BCD4;" onclick="setColor(0,255,255)">
+            🔷 Cyan
+          </button>
+          <button class="btn-color" style="background: #E91E63;" onclick="setColor(255,0,255)">
+            🌸 Magenta
+          </button>
+          <button class="btn-color" style="background: #8BC34A;" onclick="setColor(139,195,74)">
+            🍃 Vert Citron
+          </button>
+          <button class="btn-color" style="background: #FF5722;" onclick="setColor(255,87,34)">
+            🔥 Rouge Orangé
+          </button>
+          <button class="btn-color" style="background: #673AB7;" onclick="setColor(103,58,183)">
+            💜 Indigo
+          </button>
+          <button class="btn-color" style="background: #FFC107; color: black;" onclick="setColor(255,193,7)">
+            ⭐ Ambre
+          </button>
+          <button class="btn-color" style="background: #3F51B5;" onclick="setColor(63,81,181)">
+            🔹 Bleu Indigo
+          </button>
+          <button class="btn-color" style="background: #CDDC39; color: black;" onclick="setColor(205,220,57)">
+            🌟 Lime
+          </button>
+        </div>
+      </div>
+
+      <!-- Effets spéciaux -->
+      <div class="section">
+        <h2>✨ Effets Spéciaux</h2>
+        <div class="button-grid">
+          <button class="btn-effect" onclick="startEffect('rainbow')">
+            🌈 Arc-en-ciel
+          </button>
+          <button class="btn-effect" onclick="startEffect('breathing')">
+            💨 Respiration
+          </button>
+          <button class="btn-effect" onclick="startEffect('strobe')">
+            ⚡ Stroboscope
+          </button>
+          <button class="btn-effect" onclick="startEffect('police')">
+            🚨 Sirène Police
+          </button>
+          <button class="btn-effect" onclick="startEffect('aurora')">
+            🌌 Aurores Boréales
+          </button>
+        </div>
+      </div>
+
+      <!-- Effets Avancés -->
+      <div class="section">
+        <h2>🎭 Effets Avancés</h2>
+
+        <!-- Contrôle de vitesse -->
+        <div class="slider-container">
+          <label>
+            Vitesse des effets: <span id="speed-value" class="value-display">1.0x</span>
+          </label>
+          <input
+            type="range"
+            id="speed-slider"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value="1.0"
+            oninput="updateSpeedDisplay(this.value)"
+          />
+        </div>
+
+        <div class="button-grid">
+          <button class="btn-effect" onclick="startFadeEffect()">
+            🎨 Fondu Couleurs
+          </button>
+          <button class="btn-effect" onclick="startWaveEffect()">
+            🌊 Vague
+          </button>
+        </div>
+
+        <!-- Clignotement personnalisé -->
+        <div style="margin-top: 20px;">
+          <label style="display: block; margin-bottom: 10px; font-size: 1.1em;">
+            Clignotements: <span id="blink-count-value" class="value-display">10</span>
+          </label>
+          <input
+            type="range"
+            id="blink-count-slider"
+            min="1"
+            max="50"
+            value="10"
+            oninput="updateBlinkCountDisplay(this.value)"
+            style="margin-bottom: 15px;"
+          />
+          <button class="btn-effect" onclick="startBlinkEffect()" style="width: 100%;">
+            💫 Clignotement Personnalisé
+          </button>
+        </div>
+      </div>
+
+      <!-- Arrêt des effets -->
+      <div class="section">
+        <button class="btn-stop" onclick="stopEffect()">
+          ⏹️ ARRÊTER L'EFFET
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // État actuel
+      let currentColor = { r: 255, g: 255, b: 255 };
+      let currentEffect = "Aucun";
+      let currentBrightness = 100;
+
+      function updateStatus(msg, success = true) {
+        const statusEl = document.getElementById("status");
+        statusEl.innerText = msg;
+        statusEl.style.background = success
+          ? "rgba(76, 175, 80, 0.3)"
+          : "rgba(244, 67, 54, 0.3)";
+        setTimeout(() => {
+          statusEl.style.background = "rgba(255, 255, 255, 0.1)";
+        }, 2000);
+      }
+
+      function updateColorDisplay(r, g, b) {
+        currentColor = { r, g, b };
+        document.getElementById("color-preview").style.background = `rgb(${r}, ${g}, ${b})`;
+        document.getElementById("rgb-display").innerText = `RGB(${r}, ${g}, ${b})`;
+      }
+
+      function updateEffectDisplay(effect) {
+        currentEffect = effect;
+        document.getElementById("effect-display").innerText = effect;
+      }
+
+      function updateBrightnessDisplay(value) {
+        currentBrightness = value;
+        document.getElementById("brightness-value").innerText = value + "%";
+        document.getElementById("current-brightness").innerText = value + "%";
+      }
+
+      // Mettre à jour l'affichage de la couleur personnalisée
+      document.getElementById("color-picker").addEventListener("input", (e) => {
+        const hex = e.target.value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        document.getElementById("color-value").innerText = `RGB(${r}, ${g}, ${b})`;
+      });
+
+      function ledOn() {
+        fetch("/api/led/on", { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay("Aucun");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function ledOff() {
+        fetch("/api/led/off", { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay("Aucun");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function ledWhite() {
+        fetch("/api/led/white", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brightness: 255 }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateColorDisplay(255, 255, 255);
+            updateEffectDisplay("Aucun");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function setColor(r, g, b) {
+        fetch("/api/led/color", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ r: r, g: g, b: b }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateColorDisplay(r, g, b);
+            updateEffectDisplay("Aucun");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function setColorFromPicker() {
+        const hex = document.getElementById("color-picker").value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        setColor(r, g, b);
+      }
+
+      function setBrightness(value) {
+        fetch("/api/led/brightness", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brightness: parseInt(value) }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateBrightnessDisplay(value);
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function startEffect(effect) {
+        const effectNames = {
+          rainbow: "Arc-en-ciel 🌈",
+          breathing: "Respiration 💨",
+          strobe: "Stroboscope ⚡",
+          police: "Sirène Police 🚨",
+          aurora: "Aurores Boréales 🌌"
+        };
+
+        updateStatus("🎬 Démarrage de l'effet " + effect + "...");
+
+        fetch(`/api/effect/${effect}`, { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay(effectNames[effect] || effect);
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function stopEffect() {
+        fetch("/api/effect/stop", { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay("Aucun");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      // Fonctions pour les effets avancés
+      function updateSpeedDisplay(value) {
+        document.getElementById("speed-value").innerText = parseFloat(value).toFixed(1) + "x";
+      }
+
+      function updateBlinkCountDisplay(value) {
+        document.getElementById("blink-count-value").innerText = value;
+      }
+
+      function startFadeEffect() {
+        const speed = parseFloat(document.getElementById("speed-slider").value);
+
+        updateStatus("🎬 Démarrage effet fondu de couleurs...");
+
+        fetch("/api/effect/fade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ speed: speed })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay("Fondu Couleurs 🎨");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function startWaveEffect() {
+        const speed = parseFloat(document.getElementById("speed-slider").value);
+
+        updateStatus("🎬 Démarrage effet vague...");
+
+        fetch("/api/effect/wave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ speed: speed })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay("Vague 🌊");
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+
+      function startBlinkEffect() {
+        const speed = parseFloat(document.getElementById("speed-slider").value);
+        const count = parseInt(document.getElementById("blink-count-slider").value);
+
+        updateStatus(`🎬 Démarrage clignotement (${count} fois)...`);
+
+        fetch("/api/effect/blink", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: count, speed: speed })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message);
+            updateEffectDisplay(`Clignotement 💫 (${count}x)`);
+          })
+          .catch(() => updateStatus("❌ Erreur de connexion", false));
+      }
+    </script>
+  </body>
+</html>
