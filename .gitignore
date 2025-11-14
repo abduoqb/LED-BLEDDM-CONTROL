@@ -4,6 +4,8 @@
 # Fichiers Claude Code
 CLAUDE.md
 claude.md
+.claude/
+DESCRIPTION.txt
 
 # Cache Python
 __pycache__/
