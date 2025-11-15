@@ -1,4 +1,5 @@
 <!-- prettier-ignore-file -->
+
 # 🎨 Système de Contrôle LEDs BLEDDM
 
 Projet de contrôle de bandes LEDs Bluetooth BLEDDM avec interface locale, serveur API Flask et automatisation iPhone.
@@ -50,7 +51,6 @@ Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux faç
 1. **Interface locale** : Menu interactif en ligne de commande sur PC
 
 
-
 <img width="300" height="300" alt="Capture d&#39;écran 2025-11-15 051241" src="https://github.com/user-attachments/assets/cefa5887-6c88-41e9-a046-b8d9db7f34ed" />
 
 
@@ -60,8 +60,6 @@ Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux faç
 
 
 <img width="700" height="400" alt="image" src="https://github.com/user-attachments/assets/b0ad92a0-32be-4081-9999-b03bb2ab3252" />
-
-
 ### Caractéristiques principales
 
 - ✅ Contrôle Bluetooth via Python (bleak)
@@ -111,11 +109,11 @@ leds/
 |   └───templates/
 |         index.html
 |
-├.env.exemple
-├LANCER_SERVEUR_INVISIBLE.vbs
-├README.md
-├TROUBLESHOOTING.md
-├requirements.txt
+├ .env.exemple
+├ TOGGLE_SERVEUR_LED.vbs
+├ README.md
+├ TROUBLESHOOTING.md
+├ requirements.txt
 ```
 
 ### Description des fichiers
@@ -159,7 +157,6 @@ leds/
 
 ### 1. Cloner ou télécharger le projet
 
-
 ```bash
 git clone https://github.com/abduoqb/LED-BLEDDM-CONTROL
 cd projet-leds
@@ -184,11 +181,13 @@ cp .env.example .env
 **Trouve l'adresse MAC de tes LEDs** :
 
 **Option 1 : nRF Connect (Android/iOS)**
+
 - Télécharge l'app nRF Connect
 - Scanne les appareils Bluetooth
 - Note l'adresse MAC (ex: `AA:BB:CC:DD:EE:FF`)
 
 **Option 2 : Windows**
+
 - Paramètres → Bluetooth → Appareil BLEDDM → Propriétés
 - Note l'adresse affichée
 
@@ -221,15 +220,21 @@ Un menu s'affiche avec toutes les options disponibles. Les effets tournent en bo
 
 ### Option 2 : Serveur web + API (Connexion Persistante - Recommandé)
 
-#### Démarrer le serveur
+#### Démarrer/Arrêter le serveur
 
+**🪟 Windows : Script Toggle (Recommandé)**
+
+Double-cliquez sur **`TOGGLE_SERVEUR_LED.vbs`** pour :
+- **Démarrer** le serveur (si arrêté) + ouvre automatiquement le navigateur
+- **Arrêter** le serveur (si actif)
+
+✨ **Un seul script pour tout gérer !**
+
+**Lancement manuel (alternative)** :
 ```bash
 cd serveur
 python led_serveur.py
 ```
-
-**🪟 Windows : Lancement en arrière-plan**
-Double-cliquez sur `LANCER_SERVEUR_INVISIBLE.vbs` pour lancer le serveur en mode invisible (sans fenêtre de terminal).
 
 **Note** : Le serveur utilise une connexion Bluetooth **persistante** pour une latence ultra-faible (~100ms au lieu de ~3.5s par commande).
 
@@ -239,6 +244,7 @@ http://127.0.0.1:5000 (local PC)
 http://192.168.X.XXX:5000 (réseau local - note ton IP)
 
 **Nouveautés** :
+
 - ⚡ Latence divisée par 35 (97% plus rapide)
 - 🔄 Reconnexion automatique
 - 📊 Statistiques en temps réel : `http://localhost:5000/api/stats`
@@ -361,6 +367,7 @@ Maintenant tes LEDs s'allument automatiquement quand tu rentres chez toi ! 🎉
 **⚠️ IMPORTANT :** L'application mobile officielle des LEDs ne doit **PAS** être ouverte pendant l'utilisation de ce script. Elle monopolise la connexion Bluetooth et empêche le contrôle depuis le PC.
 
 **Solution :**
+
 1. Ferme complètement l'application mobile des LEDs
 2. Déconnecte les LEDs dans les paramètres Bluetooth Windows
 3. Relance le script

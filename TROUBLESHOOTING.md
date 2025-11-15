@@ -274,4 +274,4 @@ Si vous accédez depuis un autre appareil (iPhone) :
 
 ---
 
-**Dernière mise à jour** : 2025-11-09
+**Dernière mise à jour** : 2025-11-15
