@@ -21,7 +21,7 @@ Projet de contrôle de bandes LEDs Bluetooth BLEDDM avec interface locale, serve
 
 ```bash
 # 1. Clone et installe
-git clone <votre-repo>
+git clone https://github.com/abduoqb/LED-BLEDDM-CONTRO
 cd leds
 pip install -r requirements.txt
 
@@ -88,15 +88,23 @@ Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux faç
 
 ## 📁 Structure du projet
 
-projet-leds/
-├───control
-│ led_control_system.py
+```bash
+leds/
+├───control/
+│    led_control_system.py
 │
-└───serveur
-│ led_serveur.py
-│
-└───templates
-index.html
+├───serveur/
+|   │     led_serveur.py
+|   │
+|   └───templates/
+|         index.html
+|
+├.env.exemple
+├LANCER_SERVEUR_INVISIBLE.vbs
+├README.md
+├TROUBLESHOOTING.md
+├requirements.txt
+```
 
 ### Description des fichiers
 
@@ -139,8 +147,11 @@ index.html
 
 ### 1. Cloner ou télécharger le projet
 
-git clone <votre-repo>
+
+```bash
+git clone https://github.com/abduoqb/LED-BLEDDM-CONTROL
 cd projet-leds
+```
 
 ### 2. Installer les dépendances
 
