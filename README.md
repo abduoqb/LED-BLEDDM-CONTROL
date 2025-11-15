@@ -48,7 +48,19 @@ python led_serveur.py
 Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux façons :
 
 1. **Interface locale** : Menu interactif en ligne de commande sur PC
+
+
+
+<img width="300" height="300" alt="Capture d&#39;écran 2025-11-15 051241" src="https://github.com/user-attachments/assets/cefa5887-6c88-41e9-a046-b8d9db7f34ed" />
+
+
 2. **Serveur web** : API Flask + Interface web accessible depuis navigateur ou iPhone
+
+
+
+
+<img width="700" height="400" alt="image" src="https://github.com/user-attachments/assets/b0ad92a0-32be-4081-9999-b03bb2ab3252" />
+
 
 ### Caractéristiques principales
 
