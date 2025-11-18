@@ -25,9 +25,22 @@ FLASK_HOST = os.getenv('FLASK_HOST', '0.0.0.0')
 FLASK_PORT = int(os.getenv('FLASK_PORT', '5000'))
 FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
-# Variable globale pour arrêter les effets
+# Variables globales pour gérer les effets avec thread-safety
 stop_effect = False
 current_effect_thread = None
+effect_lock = threading.Lock()  # Verrou pour protéger les variables globales
+
+# Variables globales pour l'état du Pomodoro (synchronisation SSE)
+pomodoro_state = {
+    'is_running': False,
+    'phase': 'work',  # 'work' ou 'break'
+    'current_cycle': 0,
+    'total_cycles': 4,
+    'remaining_seconds': 0,
+    'work_minutes': 25,
+    'break_minutes': 5
+}
+pomodoro_lock = threading.Lock()  # Verrou pour protéger l'état du Pomodoro
 
 class PersistentLEDController:
     """Contrôleur LED avec connexion Bluetooth persistante"""
@@ -181,7 +194,7 @@ class PersistentLEDController:
     def set_color(self, r, g, b):
         """Changer couleur"""
         self.current_color = (r, g, b)
-        return self.send_command([0x7e, 0x00, 0x05, 0x03, r, b, g, 0x00, 0xef])
+        return self.send_command([0x7e, 0x00, 0x05, 0x03, r, g, b, 0x00, 0xef])
 
     def set_brightness(self, brightness):
         """Définir la luminosité (0-100)"""
@@ -460,6 +473,101 @@ class PersistentLEDController:
         self.set_color(*color)
         print(f"[BLINK] Effet arrêté ({blinks_done} clignotements)")
 
+    def pomodoro_effect(self, work_minutes=25, break_minutes=5, cycles=4):
+        """Mode concentration Pomodoro avec synchronisation SSE"""
+        global stop_effect, pomodoro_state, pomodoro_lock
+
+        print("=" * 60)
+        print("[POMODORO] Mode concentration démarré!")
+        print(f"  - Travail: {work_minutes} min (blanc)")
+        print(f"  - Pause: {break_minutes} min (vert)")
+        print(f"  - Cycles: {cycles}")
+        print("=" * 60)
+
+        # Initialiser l'état du Pomodoro
+        with pomodoro_lock:
+            pomodoro_state['is_running'] = True
+            pomodoro_state['work_minutes'] = work_minutes
+            pomodoro_state['break_minutes'] = break_minutes
+            pomodoro_state['total_cycles'] = cycles
+
+        for cycle in range(1, cycles + 1):
+            if stop_effect:
+                break
+
+            # PHASE TRAVAIL
+            print(f"\n[POMODORO] Cycle {cycle}/{cycles} - TRAVAIL ({work_minutes} min)")
+            self.set_color(255, 255, 255)  # Blanc pour concentration
+            self.set_brightness(100)
+
+            # Mettre à jour l'état
+            with pomodoro_lock:
+                pomodoro_state['phase'] = 'work'
+                pomodoro_state['current_cycle'] = cycle
+
+            # Compte à rebours avec mise à jour de l'état
+            work_seconds = work_minutes * 60
+            for second in range(work_seconds, 0, -1):
+                if stop_effect:
+                    break
+                with pomodoro_lock:
+                    pomodoro_state['remaining_seconds'] = second
+                time.sleep(1)
+
+            if stop_effect:
+                break
+
+            # ALERTE FIN TRAVAIL
+            print("\n[POMODORO] Temps de travail terminé!")
+            for _ in range(3):
+                self.set_color(0, 255, 0)  # Vert
+                time.sleep(0.5)
+                self.set_color(0, 0, 0)
+                time.sleep(0.5)
+
+            # PHASE PAUSE (sauf au dernier cycle)
+            if cycle < cycles:
+                print(f"[POMODORO] PAUSE ({break_minutes} min) - Reposez-vous!")
+                self.set_color(0, 255, 0)  # Vert relaxant
+                self.set_brightness(70)
+
+                # Mettre à jour l'état
+                with pomodoro_lock:
+                    pomodoro_state['phase'] = 'break'
+
+                # Compte à rebours avec mise à jour de l'état
+                break_seconds = break_minutes * 60
+                for second in range(break_seconds, 0, -1):
+                    if stop_effect:
+                        break
+                    with pomodoro_lock:
+                        pomodoro_state['remaining_seconds'] = second
+                    time.sleep(1)
+
+                if stop_effect:
+                    break
+
+                # ALERTE FIN PAUSE
+                print("\n[POMODORO] Pause terminée! Retour au travail.")
+                for _ in range(2):
+                    self.set_color(0, 255, 0)
+                    time.sleep(0.5)
+                    self.set_color(0, 0, 0)
+                    time.sleep(0.5)
+
+        # Session terminée
+        print("\n[POMODORO] Session Pomodoro terminée! Bravo! 🎉")
+        self.set_color(0, 255, 0)
+        self.set_brightness(100)
+        time.sleep(2)
+
+        # Réinitialiser l'état
+        with pomodoro_lock:
+            pomodoro_state['is_running'] = False
+            pomodoro_state['phase'] = 'work'
+            pomodoro_state['current_cycle'] = 0
+            pomodoro_state['remaining_seconds'] = 0
+
 # Initialiser le contrôleur
 led_controller = PersistentLEDController(LED_ADDRESS, CHAR_UUID)
 
@@ -473,9 +581,12 @@ def home():
         "version": "2.0-persistent",
         "connected": led_controller.is_connected,
         "routes": [
+            "/dashboard",
+            "/pomodoro",
             "/api/status",
             "/api/health",
             "/api/stats",
+            "/api/pomodoro/stream",
             "/api/led/on",
             "/api/led/off",
             "/api/led/color",
@@ -490,6 +601,7 @@ def home():
             "/api/effect/fade",
             "/api/effect/wave",
             "/api/effect/blink",
+            "/api/effect/pomodoro",
             "/api/effect/stop"
         ]
     })
@@ -498,6 +610,45 @@ def home():
 def dashboard():
     """Interface web de contrôle"""
     return render_template('index.html')
+
+@app.route('/pomodoro')
+def pomodoro():
+    """Page dédiée au mode Pomodoro"""
+    return render_template('pomodoro.html')
+
+@app.route('/api/pomodoro/stream')
+def pomodoro_stream():
+    """Stream Server-Sent Events pour synchroniser l'état du Pomodoro"""
+    def event_stream():
+        """Générateur qui envoie l'état du Pomodoro en temps réel"""
+        import json
+
+        print("[SSE] Client connecté au stream Pomodoro")
+
+        try:
+            while True:
+                # Lire l'état actuel de manière thread-safe
+                with pomodoro_lock:
+                    state_copy = pomodoro_state.copy()
+
+                # Envoyer l'état au format SSE
+                data = json.dumps(state_copy)
+                yield f"data: {data}\n\n"
+
+                # Attendre 1 seconde avant le prochain envoi
+                time.sleep(1)
+
+        except GeneratorExit:
+            print("[SSE] Client déconnecté du stream Pomodoro")
+
+    return app.response_class(
+        event_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'  # Désactiver le buffering nginx
+        }
+    )
 
 @app.route('/api/status', methods=['GET'])
 def status():
@@ -560,10 +711,23 @@ def led_off():
 @app.route('/api/led/color', methods=['POST'])
 def led_color():
     """Changer la couleur"""
-    data = request.json
-    r = data.get('r', 255)
-    g = data.get('g', 255)
-    b = data.get('b', 255)
+    data = request.json or {}
+
+    # Validation stricte
+    try:
+        r = int(data.get('r', 255))
+        g = int(data.get('g', 255))
+        b = int(data.get('b', 255))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètres invalides : r, g, b doivent être des entiers"
+        }), 400
+
+    # Limiter à la plage 0-255
+    r = max(0, min(r, 255))
+    g = max(0, min(g, 255))
+    b = max(0, min(b, 255))
 
     print(f"[INFO] Changement de couleur: RGB({r}, {g}, {b})")
     result = led_controller.set_color(r, g, b)
@@ -580,8 +744,19 @@ def led_color():
 @app.route('/api/led/brightness', methods=['POST'])
 def led_brightness():
     """Changer la luminosité"""
-    data = request.json
-    brightness = data.get('brightness', 100)
+    data = request.json or {}
+
+    # Validation stricte
+    try:
+        brightness = int(data.get('brightness', 100))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètre invalide : brightness doit être un entier"
+        }), 400
+
+    # Limiter à la plage 0-100
+    brightness = max(0, min(brightness, 100))
 
     print(f"[INFO] Changement de luminosité: {brightness}%")
     result = led_controller.set_brightness(brightness)
@@ -598,8 +773,19 @@ def led_brightness():
 @app.route('/api/led/white', methods=['POST'])
 def led_white():
     """Mode blanc"""
-    data = request.json
-    brightness = data.get('brightness', 255)
+    data = request.json or {}
+
+    # Validation stricte
+    try:
+        brightness = int(data.get('brightness', 255))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètre invalide : brightness doit être un entier"
+        }), 400
+
+    # Limiter à la plage 0-255
+    brightness = max(0, min(brightness, 255))
 
     print(f"[INFO] Mode blanc: {brightness}")
     result = led_controller.set_white(brightness)
@@ -631,14 +817,33 @@ def home_arrival():
 
 @app.route('/api/effect/stop', methods=['POST'])
 def stop_current_effect():
-    """Arrêter l'effet en cours"""
-    global stop_effect, current_effect_thread
+    """Arrêter l'effet en cours avec protection thread-safe"""
+    global stop_effect, current_effect_thread, pomodoro_state, pomodoro_lock
 
     print("[INFO] Arrêt de l'effet en cours")
-    stop_effect = True
 
-    if current_effect_thread and current_effect_thread.is_alive():
-        current_effect_thread.join(timeout=2)
+    with effect_lock:  # ✅ Protection thread-safe
+        stop_effect = True
+
+        if current_effect_thread and current_effect_thread.is_alive():
+            # Relâcher le lock pour permettre au thread de se terminer
+            effect_lock.release()
+            try:
+                current_effect_thread.join(timeout=2)
+                print("[INFO] Effet arrêté avec succès")
+            finally:
+                effect_lock.acquire()
+        else:
+            print("[INFO] Aucun effet actif à arrêter")
+
+    # Réinitialiser l'état du Pomodoro si nécessaire
+    with pomodoro_lock:
+        if pomodoro_state['is_running']:
+            pomodoro_state['is_running'] = False
+            pomodoro_state['phase'] = 'work'
+            pomodoro_state['current_cycle'] = 0
+            pomodoro_state['remaining_seconds'] = 0
+            print("[INFO] État Pomodoro réinitialisé")
 
     return jsonify({
         "status": "success",
@@ -646,22 +851,30 @@ def stop_current_effect():
     })
 
 def start_effect(effect_func, *args):
-    """Démarre un effet dans un thread séparé"""
+    """Démarre un effet dans un thread séparé avec protection thread-safe"""
     global stop_effect, current_effect_thread
 
-    # Arrêter l'effet précédent
-    stop_effect = True
-    if current_effect_thread and current_effect_thread.is_alive():
-        current_effect_thread.join(timeout=1)
+    with effect_lock:  # ✅ Protection thread-safe
+        # Arrêter l'effet précédent
+        stop_effect = True
+        if current_effect_thread and current_effect_thread.is_alive():
+            print(f"[EFFECT] Arrêt de l'effet précédent...")
+            # Relâcher le lock temporairement pour permettre au thread de se terminer
+            effect_lock.release()
+            try:
+                current_effect_thread.join(timeout=2)
+            finally:
+                effect_lock.acquire()
 
-    # Démarrer le nouvel effet
-    stop_effect = False
-    current_effect_thread = threading.Thread(
-        target=effect_func,
-        args=args,
-        daemon=True
-    )
-    current_effect_thread.start()
+        # Démarrer le nouvel effet
+        print(f"[EFFECT] Démarrage du nouvel effet: {effect_func.__name__}")
+        stop_effect = False
+        current_effect_thread = threading.Thread(
+            target=effect_func,
+            args=args,
+            daemon=True
+        )
+        current_effect_thread.start()
 
 @app.route('/api/effect/rainbow', methods=['POST'])
 def effect_rainbow():
@@ -728,7 +941,18 @@ def effect_aurora():
 def effect_fade():
     """Effet fondu de couleurs"""
     data = request.get_json(silent=True) or {}
-    speed = data.get('speed', 1.0)
+
+    # Validation de la vitesse
+    try:
+        speed = float(data.get('speed', 1.0))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètre invalide : speed doit être un nombre"
+        }), 400
+
+    # Limiter la vitesse à une plage raisonnable
+    speed = max(0.1, min(speed, 5.0))
 
     # Récupérer les couleurs personnalisées si fournies
     colors = data.get('colors', None)
@@ -736,38 +960,99 @@ def effect_fade():
     start_effect(led_controller.fade_colors_effect, colors, speed)
     return jsonify({
         "status": "success",
-        "message": "Effet fondu de couleurs démarré"
+        "message": f"Effet fondu de couleurs démarré (vitesse: {speed}x)"
     })
 
 @app.route('/api/effect/wave', methods=['POST'])
 def effect_wave():
     """Effet vague de couleurs"""
     data = request.get_json(silent=True) or {}
-    speed = data.get('speed', 1.0)
+
+    # Validation de la vitesse
+    try:
+        speed = float(data.get('speed', 1.0))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètre invalide : speed doit être un nombre"
+        }), 400
+
+    # Limiter la vitesse à une plage raisonnable
+    speed = max(0.1, min(speed, 5.0))
 
     start_effect(led_controller.wave_effect, speed)
     return jsonify({
         "status": "success",
-        "message": "Effet vague démarré"
+        "message": f"Effet vague démarré (vitesse: {speed}x)"
     })
 
 @app.route('/api/effect/blink', methods=['POST'])
 def effect_blink():
     """Effet clignotement personnalisé"""
     data = request.get_json(silent=True) or {}
-    count = data.get('count', 10)
-    speed = data.get('speed', 1.0)
+
+    # Validation des paramètres
+    try:
+        count = int(data.get('count', 10))
+        speed = float(data.get('speed', 1.0))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètres invalides : count (entier) et speed (nombre) requis"
+        }), 400
+
+    # Limites de sécurité
+    count = max(1, min(count, 100))  # 1-100 clignotements
+    speed = max(0.1, min(speed, 5.0))  # 0.1x-5x vitesse
 
     # Récupérer la couleur si fournie
     if 'r' in data and 'g' in data and 'b' in data:
-        color = (data['r'], data['g'], data['b'])
+        try:
+            r = max(0, min(int(data['r']), 255))
+            g = max(0, min(int(data['g']), 255))
+            b = max(0, min(int(data['b']), 255))
+            color = (r, g, b)
+        except (ValueError, TypeError):
+            return jsonify({
+                "status": "error",
+                "message": "Couleur invalide : r, g, b doivent être des entiers (0-255)"
+            }), 400
     else:
         color = None  # Utilisera self.current_color
 
     start_effect(led_controller.custom_blink_effect, count, speed, color)
     return jsonify({
         "status": "success",
-        "message": f"Effet clignotement démarré ({count} fois)"
+        "message": f"Effet clignotement démarré ({count} fois à {speed}x)"
+    })
+
+@app.route('/api/effect/pomodoro', methods=['POST'])
+def effect_pomodoro():
+    """Effet Pomodoro - Mode concentration"""
+    data = request.get_json(silent=True) or {}
+
+    # Validation stricte des paramètres
+    try:
+        work_minutes = int(data.get('work_minutes', 25))
+        break_minutes = int(data.get('break_minutes', 5))
+        cycles = int(data.get('cycles', 4))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Paramètres invalides : les valeurs doivent être des entiers"
+        }), 400
+
+    # Limites de sécurité
+    work_minutes = max(1, min(work_minutes, 120))  # 1-120 minutes
+    break_minutes = max(1, min(break_minutes, 60))  # 1-60 minutes
+    cycles = max(1, min(cycles, 20))  # 1-20 cycles
+
+    print(f"[POMODORO] Démarrage avec validation : {work_minutes}/{break_minutes} min, {cycles} cycles")
+
+    start_effect(led_controller.pomodoro_effect, work_minutes, break_minutes, cycles)
+    return jsonify({
+        "status": "success",
+        "message": f"Mode Pomodoro démarré ({cycles} cycles de {work_minutes}/{break_minutes} min)"
     })
 
 if __name__ == '__main__':
@@ -789,6 +1074,7 @@ if __name__ == '__main__':
         print("=" * 60)
         print(f"  🌐 Acces local: http://localhost:{FLASK_PORT}")
         print(f"  🎨 Interface web: http://localhost:{FLASK_PORT}/dashboard")
+        print(f"  🍅 Mode Pomodoro: http://localhost:{FLASK_PORT}/pomodoro")
         print(f"  📊 Statistiques: http://localhost:{FLASK_PORT}/api/stats")
         print(f"  💚 Health check: http://localhost:{FLASK_PORT}/api/health")
         print("=" * 60)
@@ -799,6 +1085,8 @@ if __name__ == '__main__':
         print("  Le système tentera de se reconnecter automatiquement")
         print("=" * 60)
         print(f"  🌐 Acces local: http://localhost:{FLASK_PORT}")
+        print(f"  🎨 Interface web: http://localhost:{FLASK_PORT}/dashboard")
+        print(f"  🍅 Mode Pomodoro: http://localhost:{FLASK_PORT}/pomodoro")
         print("=" * 60)
         print("\n[SERVEUR] En attente de connexions...\n")
 

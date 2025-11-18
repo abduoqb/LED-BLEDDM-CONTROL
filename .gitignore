@@ -31,6 +31,12 @@ wheels/
 .installed.cfg
 *.egg
 
+# fichiers analyse
+ANALYSE_BUGS.md
+CORRECTIONS_COMPLETES.md
+CORRECTIONS_POMODORO.md
+NOUVELLES_FONCTIONNALITES.md
+
 # Virtual environment
 venv/
 ENV/

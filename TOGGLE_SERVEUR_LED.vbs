@@ -68,17 +68,12 @@ Function CountServerInstances()
 End Function
 
 ' ========================================
-' LOGIQUE PRINCIPALE: TOGGLE
+' FONCTION: Tuer tous les processus LED
 ' ========================================
+Sub KillAllLEDProcesses()
+    On Error Resume Next
 
-If IsServerRunning() Then
-    ' ========================================
-    ' SERVEUR ACTIF -> ARRETER
-    ' ========================================
-
-    instanceCount = CountServerInstances()
-
-    ' Extraire et arrêter tous les processus
+    ' Méthode 1: Tuer par port 5000
     Set objExec = WshShell.Exec("netstat -ano | findstr :5000")
     Do While objExec.Status = 0
         WScript.Sleep 100
@@ -95,34 +90,58 @@ If IsServerRunning() Then
                 pid = arrParts(UBound(arrParts))
                 If IsNumeric(pid) And Not pidList.Exists(pid) Then
                     pidList.Add pid, True
+                    WshShell.Run "taskkill /F /PID " & pid, 0, True
                 End If
             End If
         End If
     Next
 
-    ' Arrêter tous les processus
-    countKilled = 0
-    For Each pid In pidList.Keys
-        On Error Resume Next
-        WshShell.Run "wmic process where ProcessId=" & pid & " delete", 0, True
-        If Err.Number = 0 Then
-            countKilled = countKilled + 1
-        End If
-        On Error GoTo 0
-    Next
+    ' Méthode 2: Tuer par nom de fichier (cherche led_serveur.py)
+    WshShell.Run "cmd /c wmic process where ""commandline like '%led_serveur.py%'"" call terminate", 0, True
+    WScript.Sleep 500
 
-    ' Attendre que les processus se terminent
-    WScript.Sleep 1000
+    ' Méthode 3: Forcer avec taskkill si nécessaire
+    WshShell.Run "cmd /c for /f ""tokens=2"" %i in ('wmic process where ""commandline like '%led_serveur.py%'"" get processid 2^>nul ^| findstr [0-9]') do @taskkill /F /PID %i 2>nul", 0, True
 
-    ' Verifier que tout est arrete
-    If CountServerInstances() = 0 Then
+    On Error GoTo 0
+End Sub
+
+' ========================================
+' LOGIQUE PRINCIPALE: TOGGLE
+' ========================================
+
+If IsServerRunning() Then
+    ' ========================================
+    ' SERVEUR ACTIF -> ARRETER
+    ' ========================================
+
+    ' Utiliser la fonction de nettoyage robuste
+    Call KillAllLEDProcesses()
+
+    ' Attendre que les processus se terminent complètement
+    WScript.Sleep 3000
+
+    ' Vérifier que tout est arrêté
+    If CountServerInstances() = 0 And Not IsServerRunning() Then
         MsgBox "Serveur LED arrete avec succes !" & vbCrLf & vbCrLf & _
-               countKilled & " processus termine(s)." & vbCrLf & vbCrLf & _
+               "Tous les processus ont ete termines." & vbCrLf & vbCrLf & _
                "Double-cliquez a nouveau pour redemarrer.", vbInformation, "Toggle Serveur LED"
     Else
-        MsgBox "Attention: Certains processus n'ont pas pu etre arretes." & vbCrLf & vbCrLf & _
-               "Essayez de redemarrer l'ordinateur ou d'arreter manuellement les processus Python.", _
-               vbExclamation, "Toggle Serveur LED"
+        ' Essayer une dernière fois avec force maximale
+        WshShell.Run "taskkill /F /IM python.exe /FI ""WINDOWTITLE eq led_serveur*""", 0, True
+        WScript.Sleep 1000
+
+        If CountServerInstances() = 0 And Not IsServerRunning() Then
+            MsgBox "Serveur LED arrete (apres nettoyage force)." & vbCrLf & vbCrLf & _
+                   "Double-cliquez a nouveau pour redemarrer.", vbInformation, "Toggle Serveur LED"
+        Else
+            MsgBox "Attention: Certains processus resistant encore." & vbCrLf & vbCrLf & _
+                   "Solutions:" & vbCrLf & _
+                   "1. Redemarrez votre ordinateur" & vbCrLf & _
+                   "2. Ouvrez le Gestionnaire des taches et tuez manuellement python.exe" & vbCrLf & _
+                   "3. Executez en tant qu'administrateur: taskkill /F /IM python.exe", _
+                   vbExclamation, "Toggle Serveur LED"
+        End If
     End If
 
 Else

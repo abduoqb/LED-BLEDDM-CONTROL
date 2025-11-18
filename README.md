@@ -50,14 +50,9 @@ Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux faç
 
 1. **Interface locale** : Menu interactif en ligne de commande sur PC
 
-
 <img width="300" height="300" alt="Capture d&#39;écran 2025-11-15 051241" src="https://github.com/user-attachments/assets/cefa5887-6c88-41e9-a046-b8d9db7f34ed" />
 
-
 2. **Serveur web** : API Flask + Interface web accessible depuis navigateur ou iPhone
-
-
-
 
 <img width="700" height="400" alt="image" src="https://github.com/user-attachments/assets/b0ad92a0-32be-4081-9999-b03bb2ab3252" />
 ### Caractéristiques principales
@@ -111,6 +106,7 @@ leds/
 |
 ├ .env.exemple
 ├ TOGGLE_SERVEUR_LED.vbs
+├ SCRIPTS_VBS_README
 ├ README.md
 ├ TROUBLESHOOTING.md
 ├ requirements.txt
@@ -225,12 +221,14 @@ Un menu s'affiche avec toutes les options disponibles. Les effets tournent en bo
 **🪟 Windows : Script Toggle (Recommandé)**
 
 Double-cliquez sur **`TOGGLE_SERVEUR_LED.vbs`** pour :
+
 - **Démarrer** le serveur (si arrêté) + ouvre automatiquement le navigateur
 - **Arrêter** le serveur (si actif)
 
 ✨ **Un seul script pour tout gérer !**
 
 **Lancement manuel (alternative)** :
+
 ```bash
 cd serveur
 python led_serveur.py

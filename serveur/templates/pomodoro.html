@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mode Pomodoro - LEDs BLEDDM</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        color: white;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      }
+
+      .subtitle {
+        font-size: 1.1em;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        text-decoration: none;
+        color: white;
+        transition: all 0.3s ease;
+      }
+
+      .back-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateX(-5px);
+      }
+
+      /* Timer principal */
+      .timer-container {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 40px;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        text-align: center;
+      }
+
+      .phase-indicator {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+
+      .phase-work {
+        color: #ffffff;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      }
+
+      .phase-break {
+        color: #4CAF50;
+        text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+      }
+
+      .timer-display {
+        font-size: 6em;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        margin: 30px 0;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        letter-spacing: 10px;
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Barre de progression circulaire */
+      .circular-progress {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        margin: 0 auto 20px;
+      }
+
+      .circular-progress svg {
+        transform: rotate(-90deg);
+      }
+
+      .progress-ring-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 12;
+      }
+
+      .progress-ring {
+        fill: none;
+        stroke: #4CAF50;
+        stroke-width: 12;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+      }
+
+      .progress-ring.work {
+        stroke: #ffffff;
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+      }
+
+      .progress-ring.break {
+        stroke: #4CAF50;
+        filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.5));
+      }
+
+      .timer-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+
+      .cycle-info {
+        font-size: 1.3em;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 20px;
+      }
+
+      /* Section de configuration */
+      .config-section {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .config-section h2 {
+        margin-bottom: 20px;
+        font-size: 1.5em;
+        color: #4CAF50;
+      }
+
+      .slider-container {
+        margin: 20px 0;
+      }
+
+      .slider-container label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 8px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.2);
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #4CAF50;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #4CAF50;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      .value-display {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #4CAF50;
+      }
+
+      /* Boutons */
+      .button-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+      }
+
+      button {
+        flex: 1;
+        font-size: 18px;
+        padding: 20px;
+        cursor: pointer;
+        border: none;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .btn-start {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+      }
+
+      .btn-stop {
+        background: linear-gradient(135deg, #f44336, #da190b);
+        color: white;
+      }
+
+      .btn-pause {
+        background: linear-gradient(135deg, #FF9800, #F57C00);
+        color: white;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Info box */
+      .info-box {
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(76, 175, 80, 0.2);
+        border-radius: 10px;
+        border-left: 4px solid #4CAF50;
+      }
+
+      .info-box p {
+        margin: 5px 0;
+        font-size: 0.95em;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      #status {
+        text-align: center;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 1.1em;
+      }
+
+      /* Animations */
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      .timer-running {
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 1.8em;
+        }
+
+        .timer-container {
+          padding: 20px;
+        }
+
+        .circular-progress {
+          width: 320px;
+          height: 320px;
+          margin: 0 auto 20px;
+        }
+
+        .timer-display {
+          font-size: 4em;
+          letter-spacing: 3px;
+          margin: 0;
+        }
+
+        .phase-indicator {
+          font-size: 1.2em;
+        }
+
+        .cycle-info {
+          font-size: 1.1em;
+        }
+
+        .button-group {
+          flex-direction: column;
+        }
+
+        .config-section {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a href="/dashboard" class="back-link">← Retour au Dashboard</a>
+
+      <header>
+        <h1>🍅 Mode Pomodoro</h1>
+        <p class="subtitle">Technique de gestion du temps pour améliorer la concentration</p>
+      </header>
+
+      <div id="status">En attente...</div>
+
+      <!-- Timer -->
+      <div class="timer-container">
+        <div id="phase-indicator" class="phase-indicator phase-work">
+          Phase de travail
+        </div>
+
+        <!-- Barre de progression circulaire -->
+        <div class="circular-progress">
+          <svg width="400" height="400">
+            <!-- Cercle de fond -->
+            <circle class="progress-ring-bg" cx="200" cy="200" r="190" />
+            <!-- Cercle de progression -->
+            <circle id="progress-ring" class="progress-ring work" cx="200" cy="200" r="190"
+                    stroke-dasharray="1193.8" stroke-dashoffset="0" />
+          </svg>
+
+          <!-- Timer au centre -->
+          <div class="timer-content">
+            <div id="timer-display" class="timer-display">
+              25:00
+            </div>
+          </div>
+        </div>
+
+        <div id="cycle-info" class="cycle-info">
+          Cycle 0/4
+        </div>
+      </div>
+
+      <!-- Configuration -->
+      <div class="config-section">
+        <h2>⚙️ Configuration</h2>
+
+        <div class="slider-container">
+          <label>
+            Durée de travail: <span id="work-value" class="value-display">25 min</span>
+          </label>
+          <input
+            type="range"
+            id="work-slider"
+            min="1"
+            max="60"
+            value="25"
+            oninput="updateWorkDisplay(this.value)"
+          />
+        </div>
+
+        <div class="slider-container">
+          <label>
+            Durée de pause: <span id="break-value" class="value-display">5 min</span>
+          </label>
+          <input
+            type="range"
+            id="break-slider"
+            min="1"
+            max="30"
+            value="5"
+            oninput="updateBreakDisplay(this.value)"
+          />
+        </div>
+
+        <div class="slider-container">
+          <label>
+            Nombre de cycles: <span id="cycles-value" class="value-display">4</span>
+          </label>
+          <input
+            type="range"
+            id="cycles-slider"
+            min="1"
+            max="10"
+            value="4"
+            oninput="updateCyclesDisplay(this.value)"
+          />
+        </div>
+
+        <div class="button-group">
+          <button id="btn-start" class="btn-start" onclick="startPomodoro()">
+            ▶️ Démarrer
+          </button>
+          <button id="btn-stop" class="btn-stop" onclick="stopPomodoro()" disabled>
+            ⏹️ Arrêter
+          </button>
+        </div>
+
+        <div class="info-box">
+          <p><strong>Comment ça marche :</strong></p>
+          <p>• Travail : LEDs <strong>blanches</strong> à 100%</p>
+          <p>• Pause : LEDs <strong>vertes</strong> à 70%</p>
+          <p>• Alertes visuelles entre chaque phase</p>
+          <p>• Le chronomètre affiche le temps restant en temps réel</p>
+          <p>• <strong>🔊 Sons audio</strong> pour chaque transition</p>
+          <p>• <strong>⭕ Barre circulaire</strong> montrant la progression</p>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center;">
+          <button onclick="playBeep(440, 200)" style="padding: 8px 16px; margin: 5px; cursor: pointer; border-radius: 5px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+            🔊 Tester le son
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let isRunning = false;
+      let currentPhase = 'work'; // 'work' ou 'break'
+      let currentCycle = 0;
+      let totalCycles = 4;
+      let remainingSeconds = 0;
+      let workMinutes = 25;
+      let breakMinutes = 5;
+
+      // SSE (Server-Sent Events) pour synchronisation
+      let eventSource = null;
+      let useSyncMode = true; // Mode synchronisé avec le serveur
+
+      // Barre de progression circulaire
+      let progressRing = null;
+      let radius = 190;
+      let circumference = 0;
+
+      // Initialiser la barre circulaire après le chargement du DOM
+      function initCircularProgress() {
+        progressRing = document.getElementById('progress-ring');
+
+        // Adapter le rayon selon la taille d'écran
+        if (window.innerWidth <= 768) {
+          radius = 150;
+          // Mettre à jour le SVG pour mobile
+          const svg = progressRing.closest('svg');
+          svg.setAttribute('width', '320');
+          svg.setAttribute('height', '320');
+
+          const circles = svg.querySelectorAll('circle');
+          circles.forEach(circle => {
+            circle.setAttribute('cx', '160');
+            circle.setAttribute('cy', '160');
+            circle.setAttribute('r', '150');
+          });
+        }
+
+        circumference = 2 * Math.PI * radius;
+        progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressRing.style.strokeDashoffset = circumference;
+      }
+
+      // Audio Context pour les sons
+      let audioContext = null;
+
+      // Initialiser l'AudioContext (nécessite une interaction utilisateur)
+      function initAudio() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          console.log("[AUDIO] AudioContext initialisé");
+        }
+      }
+
+      // Fonction pour jouer un bip
+      function playBeep(frequency = 440, duration = 200, type = 'sine') {
+        initAudio();
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration / 1000);
+      }
+
+      // Sons spécifiques
+      function playWorkEndSound() {
+        // Mélodie ascendante (fin de travail = pause méritée)
+        playBeep(523, 150); // Do
+        setTimeout(() => playBeep(659, 150), 150); // Mi
+        setTimeout(() => playBeep(784, 300), 300); // Sol
+        console.log("[AUDIO] Son fin de travail joué");
+      }
+
+      function playBreakEndSound() {
+        // Mélodie simple (retour au travail)
+        playBeep(659, 200); // Mi
+        setTimeout(() => playBeep(523, 200), 200); // Do
+        console.log("[AUDIO] Son fin de pause joué");
+      }
+
+      function playSessionCompleteSound() {
+        // Mélodie de victoire
+        playBeep(523, 100); // Do
+        setTimeout(() => playBeep(659, 100), 100); // Mi
+        setTimeout(() => playBeep(784, 100), 200); // Sol
+        setTimeout(() => playBeep(1047, 400), 300); // Do aigu
+        console.log("[AUDIO] Son session terminée joué");
+      }
+
+      function updateStatus(msg, success = true) {
+        const statusEl = document.getElementById("status");
+        statusEl.innerText = msg;
+        statusEl.style.background = success
+          ? "rgba(76, 175, 80, 0.3)"
+          : "rgba(244, 67, 54, 0.3)";
+        setTimeout(() => {
+          statusEl.style.background = "rgba(255, 255, 255, 0.1)";
+        }, 3000);
+      }
+
+      function updateWorkDisplay(value) {
+        workMinutes = parseInt(value);
+        document.getElementById("work-value").innerText = value + " min";
+        if (!isRunning && currentPhase === 'work') {
+          remainingSeconds = workMinutes * 60;
+          updateTimerDisplay();
+        }
+      }
+
+      function updateBreakDisplay(value) {
+        breakMinutes = parseInt(value);
+        document.getElementById("break-value").innerText = value + " min";
+        if (!isRunning && currentPhase === 'break') {
+          remainingSeconds = breakMinutes * 60;
+          updateTimerDisplay();
+        }
+      }
+
+      function updateCyclesDisplay(value) {
+        totalCycles = parseInt(value);
+        document.getElementById("cycles-value").innerText = value;
+        updateCycleInfo();
+      }
+
+      function updateTimerDisplay() {
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        const display = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        document.getElementById("timer-display").innerText = display;
+
+        // Mettre à jour la barre circulaire
+        updateCircularProgress();
+      }
+
+      function updateCircularProgress() {
+        // Calculer le pourcentage de progression
+        const totalSeconds = currentPhase === 'work' ? workMinutes * 60 : breakMinutes * 60;
+        const progress = remainingSeconds / totalSeconds;
+        const offset = circumference * (1 - progress);
+
+        // Mettre à jour le cercle
+        progressRing.style.strokeDashoffset = offset;
+
+        // Changer la couleur selon la phase
+        if (currentPhase === 'work') {
+          progressRing.classList.remove('break');
+          progressRing.classList.add('work');
+        } else {
+          progressRing.classList.remove('work');
+          progressRing.classList.add('break');
+        }
+      }
+
+      function updatePhaseIndicator() {
+        const phaseEl = document.getElementById("phase-indicator");
+        if (currentPhase === 'work') {
+          phaseEl.innerText = `🎯 Phase de travail`;
+          phaseEl.className = "phase-indicator phase-work";
+        } else {
+          phaseEl.innerText = `☕ Phase de pause`;
+          phaseEl.className = "phase-indicator phase-break";
+        }
+      }
+
+      function updateCycleInfo() {
+        document.getElementById("cycle-info").innerText = `Cycle ${currentCycle}/${totalCycles}`;
+      }
+
+      // Connexion au flux SSE pour synchronisation
+      let lastPhase = null;
+      let lastRemainingSeconds = null;
+      let sessionJustCompleted = false;
+
+      function connectSSE() {
+        if (eventSource) {
+          eventSource.close();
+        }
+
+        console.log("[SSE] Connexion au stream Pomodoro...");
+        eventSource = new EventSource('/api/pomodoro/stream');
+
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+
+          // Détecter les changements de phase pour jouer les sons
+          const phaseChanged = lastPhase !== null && lastPhase !== data.phase;
+          const justFinishedWork = phaseChanged && lastPhase === 'work' && data.phase === 'break';
+          const justFinishedBreak = phaseChanged && lastPhase === 'break' && data.phase === 'work';
+
+          // Détecter la fin de session
+          const wasRunning = isRunning;
+          const nowStopped = !data.is_running && wasRunning;
+
+          // Mettre à jour l'état depuis le serveur
+          isRunning = data.is_running;
+          currentPhase = data.phase;
+          currentCycle = data.current_cycle;
+          totalCycles = data.total_cycles;
+          remainingSeconds = data.remaining_seconds;
+          workMinutes = data.work_minutes;
+          breakMinutes = data.break_minutes;
+
+          // Jouer les sons lors des transitions
+          if (justFinishedWork) {
+            playWorkEndSound();
+            updateStatus(`✅ Phase de travail terminée ! Pause de ${breakMinutes} min.`);
+          } else if (justFinishedBreak) {
+            playBreakEndSound();
+            updateStatus(`✅ Pause terminée ! Cycle ${currentCycle}/${totalCycles} - Travail de ${workMinutes} min.`);
+          }
+
+          // Détecter la fin de toute la session
+          if (nowStopped && currentCycle === 0 && !sessionJustCompleted) {
+            playSessionCompleteSound();
+            updateStatus("🎉 Session Pomodoro terminée ! Bravo !");
+            sessionJustCompleted = true;
+            setTimeout(() => { sessionJustCompleted = false; }, 2000);
+          }
+
+          // Sauvegarder l'état pour la prochaine itération
+          lastPhase = data.phase;
+          lastRemainingSeconds = remainingSeconds;
+
+          // Mettre à jour l'affichage
+          updateTimerDisplay();
+          updatePhaseIndicator();
+          updateCycleInfo();
+
+          // Ajouter l'animation si en cours
+          const timerDisplayEl = document.getElementById("timer-display");
+          if (isRunning && remainingSeconds > 0) {
+            timerDisplayEl.classList.add("timer-running");
+          } else {
+            timerDisplayEl.classList.remove("timer-running");
+          }
+
+          // Vérifier si la session est terminée
+          if (!isRunning && currentCycle === 0 && remainingSeconds === 0) {
+            // Session terminée ou arrêtée
+            document.getElementById("btn-start").disabled = false;
+            document.getElementById("btn-stop").disabled = true;
+            document.getElementById("work-slider").disabled = false;
+            document.getElementById("break-slider").disabled = false;
+            document.getElementById("cycles-slider").disabled = false;
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error("[SSE] Erreur de connexion:", error);
+          eventSource.close();
+          eventSource = null;
+
+          // Réessayer dans 5 secondes
+          setTimeout(() => {
+            if (isRunning) {
+              connectSSE();
+            }
+          }, 5000);
+        };
+      }
+
+      // Cette fonction n'est plus nécessaire avec SSE, mais gardée pour compatibilité
+      function finishPomodoro() {
+        updateStatus("🎉 Session Pomodoro terminée ! Bravo !");
+      }
+
+      function startPomodoro() {
+        if (isRunning) return;
+
+        // Initialiser l'audio au premier clic (requis par les navigateurs)
+        initAudio();
+
+        document.getElementById("btn-start").disabled = true;
+        document.getElementById("btn-stop").disabled = false;
+
+        // Désactiver les sliders pendant l'exécution
+        document.getElementById("work-slider").disabled = true;
+        document.getElementById("break-slider").disabled = true;
+        document.getElementById("cycles-slider").disabled = true;
+
+        updateStatus(`🍅 Démarrage Pomodoro (${totalCycles} cycles de ${workMinutes}/${breakMinutes} min)...`);
+
+        // Se connecter au stream SSE pour la synchronisation
+        connectSSE();
+
+        // Réinitialiser les indicateurs de phase
+        lastPhase = null;
+        sessionJustCompleted = false;
+
+        // Lancer le Pomodoro côté serveur (LEDs + timer)
+        fetch("/api/effect/pomodoro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            work_minutes: workMinutes,
+            break_minutes: breakMinutes,
+            cycles: totalCycles
+          })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("✅ " + data.message + " (synchronisé avec le serveur)");
+            isRunning = true;
+          })
+          .catch((error) => {
+            console.error("Erreur lors du démarrage:", error);
+            updateStatus("❌ Erreur de connexion au serveur", false);
+            stopPomodoro();
+          });
+      }
+
+      function stopPomodoro() {
+        if (!isRunning) return;
+
+        isRunning = false;
+
+        // Fermer la connexion SSE
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+          console.log("[SSE] Connexion fermée");
+        }
+
+        const timerDisplayEl = document.getElementById("timer-display");
+        timerDisplayEl.classList.remove("timer-running");
+
+        document.getElementById("btn-start").disabled = false;
+        document.getElementById("btn-stop").disabled = true;
+
+        // Réactiver les sliders
+        document.getElementById("work-slider").disabled = false;
+        document.getElementById("break-slider").disabled = false;
+        document.getElementById("cycles-slider").disabled = false;
+
+        // Réinitialiser l'affichage
+        currentCycle = 0;
+        currentPhase = 'work';
+        remainingSeconds = workMinutes * 60;
+        updateCycleInfo();
+        updatePhaseIndicator();
+        updateTimerDisplay();
+
+        // Arrêter l'effet côté serveur
+        fetch("/api/effect/stop", { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            updateStatus("⏹️ Session Pomodoro arrêtée");
+          })
+          .catch(() => updateStatus("❌ Erreur lors de l'arrêt", false));
+      }
+
+      // Initialisation
+      document.addEventListener('DOMContentLoaded', () => {
+        initCircularProgress();
+      });
+
+      // Initialiser immédiatement si le DOM est déjà chargé
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCircularProgress);
+      } else {
+        initCircularProgress();
+      }
+
+      updateTimerDisplay();
+      updateCycleInfo();
+      updatePhaseIndicator();
+
+      // Gestion de la fermeture de la page
+      window.addEventListener('beforeunload', (e) => {
+        // Fermer la connexion SSE
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
+        if (isRunning) {
+          // Arrêter le serveur avant de fermer
+          fetch("/api/effect/stop", { method: "POST", keepalive: true });
+
+          // Demander confirmation
+          e.preventDefault();
+          e.returnValue = 'Session Pomodoro en cours. Voulez-vous vraiment quitter ?';
+          return e.returnValue;
+        }
+      });
+
+      // Log de debug pour le développement
+      console.log("[POMODORO] Page initialisée avec succès (mode SSE activé)");
+    </script>
+  </body>
+</html>

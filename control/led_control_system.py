@@ -74,7 +74,7 @@ class LEDController:
     
     async def set_color(self, red, green, blue):
         """Définir la couleur RGB (0-255)"""
-        await self.send_command([0x7e, 0x00, 0x05, 0x03, red, blue, green, 0x00, 0xef])
+        await self.send_command([0x7e, 0x00, 0x05, 0x03, red, green, blue, 0x00, 0xef])
         self.current_color = (red, green, blue)
     
     async def set_brightness(self, brightness):
