@@ -54,7 +54,8 @@ Ce projet permet de contrôler des LEDs Bluetooth BLEDDM/ELK-BLEDOM de deux faç
 
 2. **Serveur web** : API Flask + Interface web accessible depuis navigateur ou iPhone
 
-<img width="700" height="400" alt="image" src="https://github.com/user-attachments/assets/b0ad92a0-32be-4081-9999-b03bb2ab3252" />
+<img width="700" height="400" alt="image" src="https://github.com/user-attachments/assets/62ff96be-2556-4ec1-a661-c20495d1752d" />
+
 ### Caractéristiques principales
 
 - ✅ Contrôle Bluetooth via Python (bleak)
